@@ -157,8 +157,7 @@
 
     如遇可疑訊息，消費者應立即停止交易，並透過官方帳號 jiajiou_studio 或官方Email( jiajiou@jiajiou.com)聯繫確認。
 
-    因消費者未經查證而遭受之財務損失，賣方不承擔任何責任。
-</div>
+    因消費者未經查證而遭受之財務損失，賣方不承擔任何責任。</div>
         <div class="agree-row">
           <input type="checkbox" id="agreeContract">
           <label for="agreeContract">我已閱讀並同意購買合約書</label>
@@ -193,7 +192,7 @@
   </div>
 
   <script>
-    const state = { cart:[], shipMethod: '' };
+    const state = { cart:[] };
 
     function changeQty(id, d){
       const el = document.getElementById('qty-'+id);
@@ -252,6 +251,24 @@
       const itemsEl = document.getElementById('itemsTotal');
       if (itemsEl) itemsEl.textContent = `NT$ ${itemsTotal}`;
     }
+
+    function checkout(){
+      const status = document.getElementById('status');
+      status.textContent = '';
+
+      if(state.cart.length === 0){ status.innerHTML = '<span class="error">⛔ 請先將商品加入購物車</span>'; return; }
+      const shipMethod = document.getElementById('shipMethod').value;
+      if(!shipMethod){ status.innerHTML = '<span class="error">⛔ 請選擇收件方式</span>'; return; }
+      const country = document.getElementById('country').value.trim(); if(!country){ status.innerHTML = '<span class="error">⛔ 請填寫收件國家/地區</span>'; return; }
+      const address = document.getElementById('address').value.trim(); if(!address){ status.innerHTML = '<span class="error">⛔ 請填寫7-11國際交貨便門市資訊或收件地址</span>'; return; }
+      const contact = document.getElementById('contact').value.trim(); if(!contact){ status.innerHTML = '<span class="error">⛔ 請填寫聯絡方式 (建議留IG帳號)</span>'; return; }
+      const agree = document.getElementById('agreeContract').checked; if(!agree){ status.innerHTML = '<span class="error">⛔ 請先閱讀並同意購買合約書</span>'; return; }
+
+      // 如果到這裡，代表檢查都通過
+      status.innerHTML = '<span class="ok">✅ 訂單已完成檢查，可以送出！（目前示範模式，尚未串接 EmailJS）</span>';
+    }
+
+    document.getElementById('checkout').addEventListener('click', checkout);
   </script>
 </body>
 </html>

@@ -38,8 +38,17 @@
     .agree-row input[type=checkbox]{width:16px;height:16px;vertical-align:middle;}
     .agree-row label{line-height:1;cursor:pointer}
     #status{margin-top:8px;font-size:14px}
-    footer{margin-top:40px;padding:20px;background:#0d141c;border-top:1px solid #223040;border-radius:8px;color:var(--text);font-size:14px;line-height:1.6}
+    footer{margin-top:40px;padding:20px;background:#0d141c;border:2px solid #223040;border-radius:12px;color:var(--text);font-size:14px;line-height:1.6}
   </style>
+  <!-- EmailJS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+  <script>
+    (function(){
+      emailjs.init("YOUR_PUBLIC_KEY"); // ⚠️ 請替換為你的 EmailJS Public Key
+    })();
+  </script>
+  <!-- EmailJS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 </head>
 <body>
   <div class="wrap">
@@ -175,6 +184,20 @@
   </div>
 
   <script>
+    // === EmailJS 設定（請填入你的 Service ID / Template ID / Public Key）===
+    const EMAILJS_SERVICE_ID = 'REPLACE_WITH_YOUR_SERVICE_ID';
+    const EMAILJS_TEMPLATE_ID = 'REPLACE_WITH_YOUR_TEMPLATE_ID';
+    const EMAILJS_PUBLIC_KEY = 'REPLACE_WITH_YOUR_PUBLIC_KEY';
+    function emailJsConfigured(){
+      return (typeof emailjs !== 'undefined') && EMAILJS_SERVICE_ID && EMAILJS_TEMPLATE_ID && EMAILJS_PUBLIC_KEY &&
+             !EMAILJS_SERVICE_ID.startsWith('REPLACE_') && !EMAILJS_TEMPLATE_ID.startsWith('REPLACE_') && !EMAILJS_PUBLIC_KEY.startsWith('REPLACE_');
+    }
+    document.addEventListener('DOMContentLoaded', ()=>{
+      if (typeof emailjs !== 'undefined' && EMAILJS_PUBLIC_KEY && !EMAILJS_PUBLIC_KEY.startsWith('REPLACE_')) {
+        emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+      }
+    });
+
     const fmt = { format: (n) => `NT$ ${new Intl.NumberFormat('zh-TW', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(n)}` };
 
     const CATALOG = [
@@ -272,12 +295,82 @@
 
     function checkout(){
       const status = document.getElementById('status');
+      const btn = document.getElementById('checkout');
       status.textContent = '';
 
-      if(state.cart.length === 0){
-        status.innerHTML = '<span class="error">⛔ 請先將商品加入購物車</span>';
+      // 驗證
+      if(state.cart.length === 0){ status.innerHTML = '<span class="error">⛔ 請先將商品加入購物車</span>'; return; }
+      if(!state.shipMethod){ status.innerHTML = '<span class="error">⛔ 請選擇收件方式</span>'; return; }
+      const country = document.getElementById('country').value.trim(); if(!country){ status.innerHTML = '<span class="error">⛔ 請填寫收件國家/地區</span>'; return; }
+      const address = document.getElementById('address').value.trim(); if(!address){ status.innerHTML = '<span class="error">⛔ 請填寫7-11國際交貨便門市資訊或收件地址</span>'; return; }
+      const contact = document.getElementById('contact').value.trim(); if(!contact){ status.innerHTML = '<span class="error">⛔ 請填寫聯絡方式 (建議留IG帳號)</span>'; return; }
+      const agree = document.getElementById('agreeContract').checked; if(!agree){ status.innerHTML = '<span class="error">⛔ 請先閱讀並同意購買合約書</span>'; return; }
+
+      // 若 EmailJS 尚未設定，提醒
+      if(!emailJsConfigured()){
+        status.innerHTML = '<span class="warn">⚠ 尚未設定 EmailJS（金鑰或服務/模板未填）。目前只顯示示範資訊，未實際寄出。</span>';
+      }
+
+      const method = state.shipMethod === '711intl' ? '7-11 國際賣貨便' : '中華郵政 國際包裹';
+      const orderId = 'OD' + Date.now();
+      const when = new Date().toLocaleString('zh-TW');
+
+      // 組合購物車資料
+      const lines = state.cart.map(line => {
+        const p = CATALOG.find(x=>x.id===line.id);
+        const sub = (p?.price||0) * line.qty;
+        return { id: line.id, name: p?.name||line.id, price: p?.price||0, qty: line.qty, subtotal: sub };
+      });
+      const itemsTotal = lines.reduce((s,l)=>s+l.subtotal,0);
+
+      const itemsText = lines.map(l=>`- ${l.name} x ${l.qty} = NT$ ${l.subtotal}`).join('
+');
+      const itemsHtml = `
+        <table border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse;width:100%">
+          <thead><tr><th align="left">品名</th><th align="right">單價</th><th align="right">數量</th><th align="right">小計</th></tr></thead>
+          <tbody>
+            ${lines.map(l=>`<tr><td>${l.name}</td><td align="right">NT$ ${l.price}</td><td align="right">${l.qty}</td><td align="right">NT$ ${l.subtotal}</td></tr>`).join('')}
+          </tbody>
+          <tfoot><tr><td colspan="3" align="right"><b>商品合計（不含運費）</b></td><td align="right"><b>NT$ ${itemsTotal}</b></td></tr></tfoot>
+        </table>`;
+
+      const params = {
+        order_id: orderId,
+        site_title: '村長脫衣娃娃大禮包-官方海外商店',
+        product_list_text: itemsText,
+        product_list_html: itemsHtml,
+        items_total: `NT$ ${itemsTotal}`,
+        ship_method: method,
+        country,
+        address,
+        contact,
+        agree_contract: agree ? '同意' : '未同意',
+        created_at: when
+      };
+
+      // UI 狀態
+      btn.disabled = true;
+      status.innerHTML = '<span class="muted">⏳ 正在送出訂單…</span>';
+
+      const afterDone = (ok,msg)=>{
+        btn.disabled = false;
+        status.innerHTML = ok
+          ? `<span class="ok">✅ 訂單已送出成功（編號：${orderId}）。${msg||''}</span>`
+          : `<span class="error">❌ 寄送失敗：${msg||'未知錯誤'}</span>`;
+        if(ok){ state.cart = []; renderCart(); }
+      };
+
+      if(!emailJsConfigured()){
+        // 示範：不呼叫 EmailJS，只顯示資料
+        afterDone(true, '（示範模式：未實際寄出，請在 EmailJS 設定完成後即可生效。）');
         return;
       }
+
+      // 真正寄出
+      emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, params)
+        .then(()=>{ afterDone(true); })
+        .catch((e)=>{ afterDone(false, (e && (e.text||e.message)) || String(e)); });
+    }
       if(!state.shipMethod){
         status.innerHTML = '<span class="error">⛔ 請選擇收件方式</span>';
         return;
@@ -304,22 +397,28 @@
       }
 
       const method = state.shipMethod === '711intl' ? '7-11 國際賣貨便' : '中華郵政 國際包裹';
-      status.innerHTML = `<span class="ok">✅ 訂單已通過檢查，示範送出...<br>收件方式：${method}<br>國家/地區：${country}<br>地址：${address}<br>聯絡方式：${contact}<br>運費：另計<br>合約：已同意</span>`;
+
+      // 使用 EmailJS 寄送訂單
+      const templateParams = {
+        product: CATALOG[0].name,
+        quantity: state.cart[0].qty,
+        shipMethod: method,
+        country: country,
+        address: address,
+        contact: contact
+      };
+
+      emailjs.send("YOUR_SERVICE_ID","YOUR_TEMPLATE_ID",templateParams)
+        .then(()=>{
+          status.innerHTML = '<span class="ok">✅ 訂單已送出，請留意信箱！</span>';
+        })
+        .catch((err)=>{
+          status.innerHTML = `<span class="error">❌ 寄送失敗：${err.text||err}</span>`;
+        });
     }
 
     function boot(){
       renderCatalog();
       renderCart();
       const shipSel = document.getElementById('shipMethod');
-      if (shipSel) shipSel.addEventListener('change', (e)=>{ state.shipMethod = e.target.value; });
-      document.getElementById('checkout').addEventListener('click', checkout);
-    }
-    boot();
-    window.changeQty = changeQty;
-    window.addToCart = addToCart;
-    window.updateLineQty = updateLineQty;
-    window.removeFromCart = removeFromCart;
-
-  </script>
-</body>
-</html>
+      if (shipSel) shipSel.addEventListener('change', (e)=>{ state.ship

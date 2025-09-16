@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>哥布林村莊｜訂購（前端直寄 Email）</title>
+  <style>
+    :root{ --bg:#0b0f14; --card:#121a22; --muted:#6b7785; --text:#e6edf3; --acc:#4aa3ff; }
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(180deg,#0b0f14,#0e141b 40%,#101720);color:var(--text);font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto}
+    .wrap{max-width:1100px;margin:40px auto;padding:0 16px}
+    h1{font-size:28px;margin:0 0 16px}
+    .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px}
+    .card{background:var(--card);border:1px solid #1d2631;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+    .pad{padding:16px}
+    .muted{color:var(--muted)}
+    .btn{cursor:pointer;border:0;border-radius:12px;padding:10px 14px;background:var(--acc);color:#071522;font-weight:700}
+    .btn:disabled{opacity:.6;cursor:not-allowed}
+    .btn-ghost{background:transparent;border:1px solid #223040;color:var(--text)}
+    .row{display:flex;gap:8px;align-items:center}
+    .row > *{flex:1}
+    input,select,textarea{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #223040;background:#0d141c;color:var(--text)}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:8px 10px;border-bottom:1px solid #1d2631}
+    th{color:#9fb3c8;text-align:left}
+    tfoot td{font-weight:700}
+    .right{text-align:right}
+    .tag{font-size:12px;padding:3px 8px;background:#0b1622;border:1px solid #223040;border-radius:999px;color:#8eb8ff}
+    .qty{display:inline-flex;border:1px solid #223040;border-radius:10px;overflow:hidden}
+    .qty button{all:unset;cursor:pointer;padding:6px 10px;background:#0b1622}
+    .qty input{width:40px;text-align:center;border:0;background:#0d141c;color:var(--text)}
+    .ok{color:#6bff9b}
+    .warn{color:#ffd06b}
+    .error{color:#ff6b6b}
+    .hint{font-size:12px;color:#9fb3c8}
+  </style>
+  <!-- EmailJS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+  <script>
+    // 1) 先到 https://www.emailjs.com/ 取得以下三個值後替換：
+    const EMAILJS_SERVICE_ID = "REPLACE_WITH_YOUR_SERVICE_ID";     // 例如: service_xxxxxx
+    const EMAILJS_TEMPLATE_ID = "REPLACE_WITH_YOUR_TEMPLATE_ID";   // 例如: template_xxxxxx
+    const EMAILJS_PUBLIC_KEY = "REPLACE_WITH_YOUR_PUBLIC_KEY";     // 例如: AbCDefGhIjKLMNOP
+
+    // 2) 在 EmailJS 的 Template 內新增這些變數並在收件人處填 jiajiou@jiajiou.com：
+    // {{order_id}}, {{items_html}}, {{items_total}}, {{shipping_name}}, {{shipping_fee}}, {{grand_total}},
+    // {{buyer_name}}, {{buyer_email}}, {{buyer_phone}}, {{buyer_address}}, {{buyer_note}}
+
+    document.addEventListener('DOMContentLoaded', () => {
+      if (window.emailjs) { emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY }); }
+    });
+  </script>
+</head>
+<body>
+  <div class="wrap">
+    <h1>哥布林村莊｜訂購 <span class="tag" id="orderId"></span></h1>
+    <p class="hint">此版本為 <b>前端寄信</b>（GitHub Pages 可用）。提醒：無後端驗證，<b>價格可被竄改</b>，僅適合測試或低風險用途。</p>
+    <div class="grid">
+      <section class="card pad" style="grid-column: span 7;">
+        <h2>商品</h2>
+        <div id="catalog"></div>
+      </section>
+      <aside class="card pad" style="grid-column: span 5;">
+        <h2>購物車</h2>
+        <div id="cartEmpty" class="muted">尚未選擇商品</div>
+        <table id="cartTable" style="display:none">
+          <thead><tr><th>品名</th><th class="right">單價</th><th class="right">數量</th><th class="right">小計</th><th></th></tr></thead>
+          <tbody id="cartBody"></tbody>
+          <tfoot>
+            <tr><td colspan="3" class="right">商品合計</td><td class="right" id="itemsTotal">$0</td><td></td></tr>
+            <tr><td colspan="3" class="right">運費</td><td class="right" id="shipFee">$0</td><td></td></tr>
+            <tr><td colspan="3" class="right">應付總額</td><td class="right" id="grand">$0</td><td></td></tr>
+          </tfoot>
+        </table>
+        <div style="height:12px"></div>
+        <div class="row">
+          <select id="shipping"></select>
+          <select id="payment"></select>
+        </div>
+        <div style="height:12px"></div>
+        <div class="row"><input id="name" placeholder="姓名" /><input id="email" placeholder="Email" /></div>
+        <div style="height:8px"></div>
+        <div class="row"><input id="phone" placeholder="電話" /><input id="address" placeholder="地址 / 門市" /></div>
+        <div style="height:8px"></div>
+        <textarea id="note" rows="3" placeholder="備註（例如：收件時段、發票抬頭…）"></textarea>
+        <!-- 蜜罐(防機器人)：使用者看不到，若被填代表垃圾表單 -->
+        <input type="text" id="company" style="position:absolute;left:-9999px;top:-9999px" tabindex="-1" autocomplete="off" />
+        <div style="height:12px"></div>
+        <button class="btn" id="checkout">送出訂單</button>
+        <div id="status" class="muted" style="margin-top:8px"></div>
+      </aside>
+    </div>
+  </div>
+
+  <script>
+    // ---- Catalog / Shipping / Payments (可自行修改) ----------------------
+    const CATALOG = [
+      { id: "A01", name: "村長脫衣娃娃大禮包", price: 1890 },
+      { id: "B01", name: "盲抽隨機胸章 (1枚)", price: 120 },
+      { id: "C01", name: "村莊英雄特典卡 (1張)", price: 80 },
+      { id: "D01", name: "村長拐杖 配件", price: 150 },
+    ];
+    const SHIPPING = [
+      { id: "S-711", name: "7-11 店到店", price: 60 },
+      { id: "S-HOME", name: "宅配 (本島)", price: 130 },
+      { id: "S-INTL", name: "國際寄送 (估價後補)", price: 0 },
+    ];
+    const PAYMENTS = [
+      { id: "P-CARD", name: "信用卡（另行連結）" },
+      { id: "P-COD", name: "貨到付款 (僅台灣)" },
+      { id: "P-INTL", name: "國際匯款 / PayPal" },
+    ];
+
+    const fmt = new Intl.NumberFormat('zh-TW', { style:'currency', currency:'TWD' });
+    const state = { cart:[], shippingId: SHIPPING[0].id, paymentId: PAYMENTS[0].id };
+
+    function renderCatalog(){
+      const root = document.getElementById('catalog');
+      root.innerHTML = '';
+      CATALOG.forEach(p => {
+        const card = document.createElement('div');
+        card.className = 'card pad';
+        card.style.marginBottom = '10px';
+        card.innerHTML = `
+          <div class="row" style="align-items:flex-start;gap:12px">
+            <div style="flex:1">
+              <div style="font-weight:700;font-size:18px">${p.name}</div>
+              <div class="muted">#${p.id}</div>
+            </div>
+            <div class="right" style="min-width:160px">
+              <div style="font-weight:700">${fmt.format(p.price)}</div>
+              <div style="height:6px"></div>
+              <div class="qty">
+                <button onclick="changeQty('${p.id}', -1)">-</button>
+                <input id="qty-${p.id}" type="number" min="1" max="999" value="1" />
+                <button onclick="changeQty('${p.id}', 1)">+</button>
+              </div>
+              <div style="height:6px"></div>
+              <button class="btn" onclick="addToCart('${p.id}')">加入購物車</button>
+            </div>
+          </div>`;
+        root.appendChild(card);
+      });
+    }
+
+    function renderSelectors(){
+      const ship = document.getElementById('shipping');
+      const pay = document.getElementById('payment');
+      ship.innerHTML = SHIPPING.map(s => `<option value="${s.id}">${s.name} ${s.price? '('+fmt.format(s.price)+')':''}</option>`).join('');
+      pay.innerHTML = PAYMENTS.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+      ship.value = state.shippingId; pay.value = state.paymentId;
+      ship.onchange = e => { state.shippingId = e.target.value; renderCart(); };
+      pay.onchange = e => { state.paymentId = e.target.value; };
+    }
+
+    function changeQty(id, d){
+      const el = document.getElementById('qty-'+id);
+      let v = parseInt(el.value||'1',10)+d; v = Math.min(999, Math.max(1, v)); el.value = v;
+    }
+
+    function addToCart(id){
+      const qty = parseInt(document.getElementById('qty-'+id).value||'1',10);
+      const exist = state.cart.find(x => x.id === id);
+      if(exist) exist.qty = Math.min(999, exist.qty + qty); else state.cart.push({ id, qty });
+      renderCart();
+    }
+
+    function removeFromCart(id){ state.cart = state.cart.filter(x => x.id !== id); renderCart(); }
+
+    function updateLineQty(id, d){
+      const line = state.cart.find(x=>x.id===id); if(!line) return;
+      line.qty = Math.min(999, Math.max(1, (line.qty||1)+d));
+      renderCart();
+    }
+
+    function renderCart(){
+      const empty = document.getElementById('cartEmpty');
+      const table = document.getElementById('cartTable');
+      const body = document.getElementById('cartBody');
+      body.innerHTML = '';
+      if(state.cart.length === 0){ empty.style.display='block'; table.style.display='none'; updateTotals(0); return; }
+      empty.style.display='none'; table.style.display='table';
+
+      let itemsTotal = 0;
+      for(const line of state.cart){
+        const p = CATALOG.find(x=>x.id===line.id); if(!p) continue;
+        const sub = p.price * line.qty; itemsTotal += sub;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${p.name}</td>
+          <td class="right">${fmt.format(p.price)}</td>
+          <td class="right">
+            <div class="qty" style="float:right">
+              <button onclick="updateLineQty('${line.id}', -1)">-</button>
+              <input value="${line.qty}" style="width:44px;text-align:center"/>
+              <button onclick="updateLineQty('${line.id}', 1)">+</button>
+            </div>
+          </td>
+          <td class="right">${fmt.format(sub)}</td>
+          <td class="right"><button class="btn-ghost" onclick="removeFromCart('${line.id}')">刪除</button></td>`;
+        body.appendChild(tr);
+      }
+
+      updateTotals(itemsTotal);
+    }
+
+    function updateTotals(itemsTotal){
+      const ship = SHIPPING.find(s=>s.id===state.shippingId);
+      const shipFee = ship ? (ship.price||0) : 0;
+      document.getElementById('itemsTotal').textContent = fmt.format(itemsTotal);
+      document.getElementById('shipFee').textContent = fmt.format(shipFee);
+      document.getElementById('grand').textContent = fmt.format(itemsTotal + shipFee);
+    }
+
+    async function checkout(){
+      const status = document.getElementById('status');
+      status.textContent = '';
+      if(state.cart.length===0){ status.innerHTML = '<span class="error">⛔ 請先加入商品</span>'; return; }
+
+      // 簡單校驗
+      const buyer = {
+        name: document.getElementById('name').value.trim(),
+        email: document.getElementById('email').value.trim(),
+        phone: document.getElementById('phone').value.trim(),
+        address: document.getElementById('address').value.trim(),
+        note: document.getElementById('note').value.trim(),
+      };
+      if(!buyer.name || !buyer.email){ status.innerHTML = '<span class="error">⛔ 請填寫姓名與 Email</span>'; return; }
+      // 蜜罐檢查
+      if(document.getElementById('company').value){ status.innerHTML = '<span class="error">⛔ 檢測到可疑提交</span>'; return; }
+
+      // 構建訂單資料
+      const ship = SHIPPING.find(s=>s.id===state.shippingId) || {name:'', price:0};
+      const items = state.cart.map(line=>{
+        const p = CATALOG.find(x=>x.id===line.id);
+        return { id:p?.id||'', name:p?.name||'', price:p?.price||0, qty:line.qty, sub:(p?.price||0)*line.qty };
+      });
+      const itemsTotal = items.reduce((a,b)=>a+b.sub,0);
+      const grandTotal = itemsTotal + (ship.price||0);
+      const orderId = 'GV' + Date.now();
+
+      // 轉成 HTML 列表，方便 EmailJS 套進模板
+      const itemsHtml = `
+        <table style="border-collapse:collapse;width:100%;max-width:720px">
+          <thead>
+            <tr>
+              <th align="left" style="padding:6px 8px;border-bottom:2px solid #333;">編號</th>
+              <th align="left" style="padding:6px 8px;border-bottom:2px solid #333;">品名</th>
+              <th align="right" style="padding:6px 8px;border-bottom:2px solid #333;">單價</th>
+              <th align="right" style="padding:6px 8px;border-bottom:2px solid #333;">數量</th>
+              <th align="right" style="padding:6px 8px;border-bottom:2px solid #333;">小計</th>
+            </tr>
+          </thead>
+          <tbody>
+          ${items.map(l=>`
+            <tr>
+              <td style="padding:6px 8px;border-bottom:1px solid #eee;">${escapeHtml(l.id)}</td>
+              <td style="padding:6px 8px;border-bottom:1px solid #eee;">${escapeHtml(l.name)}</td>
+              <td align="right" style="padding:6px 8px;border-bottom:1px solid #eee;">${fmt.format(l.price)}</td>
+              <td align="right" style="padding:6px 8px;border-bottom:1px solid #eee;">${l.qty}</td>
+              <td align="right" style="padding:6px 8px;border-bottom:1px solid #eee;">${fmt.format(l.sub)}</td>
+            </tr>`).join('')}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="4" align="right" style="padding:8px;">商品合計</td>
+              <td align="right" style="padding:8px;">${fmt.format(itemsTotal)}</td>
+            </tr>
+            <tr>
+              <td colspan="4" align="right" style="padding:8px;">運費（${escapeHtml(ship.name)}）</td>
+              <td align="right" style="padding:8px;">${fmt.format(ship.price||0)}</td>
+            </tr>
+            <tr>
+              <td colspan="4" align="right" style="padding:12px 8px;font-weight:bold;border-top:2px solid #333;">應付總額</td>
+              <td align="right" style="padding:12px 8px;font-weight:bold;border-top:2px solid #333;">${fmt.format(grandTotal)}</td>
+            </tr>
+          </tfoot>
+        </table>`;
+
+      const templateParams = {
+        order_id: orderId,
+        items_html: itemsHtml,
+        items_total: fmt.format(itemsTotal),
+        shipping_name: ship.name,
+        shipping_fee: fmt.format(ship.price||0),
+        grand_total: fmt.format(grandTotal),
+        buyer_name: buyer.name,
+        buyer_email: buyer.email,
+        buyer_phone: buyer.phone,
+        buyer_address: buyer.address,
+        buyer_note: buyer.note,
+      };
+
+      const btn = document.getElementById('checkout');
+      btn.disabled = true; status.textContent = '⌛ 正在送出訂單（EmailJS）…';
+      try{
+        if(!window.emailjs){ throw new Error('EmailJS SDK 未載入'); }
+        const result = await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, templateParams);
+        document.getElementById('orderId').textContent = orderId;
+        status.innerHTML = '<span class="ok">✔ 訂單已送出；已透過 EmailJS 通知店家。</span>';
+        state.cart = []; renderCart();
+      }catch(e){
+        console.error(e);
+        status.innerHTML = '<span class="warn">⚠ 無法寄出（EmailJS 設定尚未完成或網路異常）。</span>';
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function escapeHtml(str=''){
+      return String(str)
+        .replace(/&/g,'&amp;')
+        .replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;')
+        .replace(/\"/g,'&quot;')
+        .replace(/'/g,'&#39;');
+    }
+
+    // 啟動
+    function boot(){
+      renderCatalog();
+      renderSelectors();
+      renderCart();
+      document.getElementById('checkout').addEventListener('click', checkout);
+    }
+    boot();
+
+    // 對外（給 inline HTML 用）
+    window.changeQty = changeQty;
+    window.addToCart = addToCart;
+    window.updateLineQty = updateLineQty;
+    window.removeFromCart = removeFromCart;
+  </script>
+</body>
+</html>

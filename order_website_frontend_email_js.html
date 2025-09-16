@@ -40,14 +40,6 @@
     #status{margin-top:8px;font-size:14px}
     footer{margin-top:40px;padding:20px;background:#0d141c;border:2px solid #223040;border-radius:12px;color:var(--text);font-size:14px;line-height:1.6}
   </style>
-  <!-- EmailJS SDK -->
-  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
-  <script>
-    (function(){
-      emailjs.init("YOUR_PUBLIC_KEY"); // ⚠️ 請替換為你的 EmailJS Public Key
-    })();
-  </script>
-  <!-- EmailJS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 </head>
 <body>
@@ -58,7 +50,27 @@
       <!-- 商品清單 -->
       <section class="card pad" style="grid-column: span 7;">
         <h2>商品</h2>
-        <div id="catalog"></div>
+        <div id="catalog">
+          <div class="card pad" style="margin-bottom:10px">
+            <div class="row" style="align-items:flex-start;gap:12px">
+              <div style="flex:1">
+                <div style="font-weight:700;font-size:18px">村長脫衣娃娃大禮包</div>
+                <div class="muted">#A01</div>
+              </div>
+              <div class="right" style="min-width:180px">
+                <div style="font-weight:700">NT$ 350</div>
+                <div style="height:6px"></div>
+                <div class="qty">
+                  <button onclick="changeQty('A01', -1)">-</button>
+                  <span id="qty-A01">1</span>
+                  <button onclick="changeQty('A01', 1)">+</button>
+                </div>
+                <div style="height:6px"></div>
+                <button class="btn" onclick="addToCart('A01')">加入購物車</button>
+              </div>
+            </div>
+          </div>
+        </div>
         <p class="hint" style="margin-top:8px">※ 顯示價格為<strong>商品售價</strong>，<strong>不含運費</strong>。運費將依國家／地區與商品重量尺寸<strong>另計</strong>。</p>
       </section>
 
@@ -96,9 +108,7 @@
 
         <!-- 合約書與同意開關 -->
         <h3>購買合約書</h3>
-        <div class="contract-box" tabindex="0"> 
-
-本合約由買方（以下稱「消費者」）與 JIA JIOU INC.（以下稱「賣方」）訂立，消費者於購買「村長脫衣娃娃大禮包」時，即視為已閱讀並同意以下條款：
+        <div class="contract-box" tabindex="0">本合約由買方（以下稱「消費者」）與 JIA JIOU INC.（以下稱「賣方」）訂立，消費者於購買「村長脫衣娃娃大禮包」時，即視為已閱讀並同意以下條款：
 第一條 商品與付款
 
     消費者同意以賣方所報價之商品售價加計運費，作為購買「村長脫衣娃娃大禮包」之應付金額。
@@ -148,8 +158,7 @@
     如遇可疑訊息，消費者應立即停止交易，並透過官方帳號 jiajiou_studio 或官方Email( jiajiou@jiajiou.com)聯繫確認。
 
     因消費者未經查證而遭受之財務損失，賣方不承擔任何責任。
-
- </div>
+</div>
         <div class="agree-row">
           <input type="checkbox" id="agreeContract">
           <label for="agreeContract">我已閱讀並同意購買合約書</label>
@@ -184,56 +193,7 @@
   </div>
 
   <script>
-    // === EmailJS 設定（請填入你的 Service ID / Template ID / Public Key）===
-    const EMAILJS_SERVICE_ID = 'REPLACE_WITH_YOUR_SERVICE_ID';
-    const EMAILJS_TEMPLATE_ID = 'REPLACE_WITH_YOUR_TEMPLATE_ID';
-    const EMAILJS_PUBLIC_KEY = 'REPLACE_WITH_YOUR_PUBLIC_KEY';
-    function emailJsConfigured(){
-      return (typeof emailjs !== 'undefined') && EMAILJS_SERVICE_ID && EMAILJS_TEMPLATE_ID && EMAILJS_PUBLIC_KEY &&
-             !EMAILJS_SERVICE_ID.startsWith('REPLACE_') && !EMAILJS_TEMPLATE_ID.startsWith('REPLACE_') && !EMAILJS_PUBLIC_KEY.startsWith('REPLACE_');
-    }
-    document.addEventListener('DOMContentLoaded', ()=>{
-      if (typeof emailjs !== 'undefined' && EMAILJS_PUBLIC_KEY && !EMAILJS_PUBLIC_KEY.startsWith('REPLACE_')) {
-        emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
-      }
-    });
-
-    const fmt = { format: (n) => `NT$ ${new Intl.NumberFormat('zh-TW', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(n)}` };
-
-    const CATALOG = [
-      { id: "A01", name: "村長脫衣娃娃大禮包", price: 350 }
-    ];
-
     const state = { cart:[], shipMethod: '' };
-
-    function renderCatalog(){
-      const root = document.getElementById('catalog');
-      root.innerHTML = '';
-      CATALOG.forEach(p => {
-        const card = document.createElement('div');
-        card.className = 'card pad';
-        card.style.marginBottom = '10px';
-        card.innerHTML = `
-          <div class="row" style="align-items:flex-start;gap:12px">
-            <div style="flex:1">
-              <div style="font-weight:700;font-size:18px">${p.name}</div>
-              <div class="muted">#${p.id}</div>
-            </div>
-            <div class="right" style="min-width:180px">
-              <div style="font-weight:700">${fmt.format(p.price)}</div>
-              <div style="height:6px"></div>
-              <div class="qty">
-                <button onclick="changeQty('${p.id}', -1)">-</button>
-                <span id="qty-${p.id}">1</span>
-                <button onclick="changeQty('${p.id}', 1)">+</button>
-              </div>
-              <div style="height:6px"></div>
-              <button class="btn" onclick="addToCart('${p.id}')">加入購物車</button>
-            </div>
-          </div>`;
-        root.appendChild(card);
-      });
-    }
 
     function changeQty(id, d){
       const el = document.getElementById('qty-'+id);
@@ -267,12 +227,12 @@
 
       let itemsTotal = 0;
       for(const line of state.cart){
-        const p = CATALOG.find(x=>x.id===line.id); if(!p) continue;
-        const sub = p.price * line.qty; itemsTotal += sub;
+        if(line.id !== 'A01') continue;
+        const sub = 350 * line.qty; itemsTotal += sub;
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td>${p.name}</td>
-          <td class="right">${fmt.format(p.price)}</td>
+          <td>村長脫衣娃娃大禮包</td>
+          <td class="right">NT$ 350</td>
           <td class="right">
             <div class="qty" style="float:right">
               <button onclick="updateLineQty('${line.id}', -1)">-</button>
@@ -280,7 +240,7 @@
               <button onclick="updateLineQty('${line.id}', 1)">+</button>
             </div>
           </td>
-          <td class="right">${fmt.format(sub)}</td>
+          <td class="right">NT$ ${sub}</td>
           <td class="right"><button class="btn-ghost" onclick="removeFromCart('${line.id}')">刪除</button></td>`;
         body.appendChild(tr);
       }
@@ -290,135 +250,8 @@
 
     function updateTotals(itemsTotal){
       const itemsEl = document.getElementById('itemsTotal');
-      if (itemsEl) itemsEl.textContent = fmt.format(itemsTotal);
+      if (itemsEl) itemsEl.textContent = `NT$ ${itemsTotal}`;
     }
-
-    function checkout(){
-      const status = document.getElementById('status');
-      const btn = document.getElementById('checkout');
-      status.textContent = '';
-
-      // 驗證
-      if(state.cart.length === 0){ status.innerHTML = '<span class="error">⛔ 請先將商品加入購物車</span>'; return; }
-      if(!state.shipMethod){ status.innerHTML = '<span class="error">⛔ 請選擇收件方式</span>'; return; }
-      const country = document.getElementById('country').value.trim(); if(!country){ status.innerHTML = '<span class="error">⛔ 請填寫收件國家/地區</span>'; return; }
-      const address = document.getElementById('address').value.trim(); if(!address){ status.innerHTML = '<span class="error">⛔ 請填寫7-11國際交貨便門市資訊或收件地址</span>'; return; }
-      const contact = document.getElementById('contact').value.trim(); if(!contact){ status.innerHTML = '<span class="error">⛔ 請填寫聯絡方式 (建議留IG帳號)</span>'; return; }
-      const agree = document.getElementById('agreeContract').checked; if(!agree){ status.innerHTML = '<span class="error">⛔ 請先閱讀並同意購買合約書</span>'; return; }
-
-      // 若 EmailJS 尚未設定，提醒
-      if(!emailJsConfigured()){
-        status.innerHTML = '<span class="warn">⚠ 尚未設定 EmailJS（金鑰或服務/模板未填）。目前只顯示示範資訊，未實際寄出。</span>';
-      }
-
-      const method = state.shipMethod === '711intl' ? '7-11 國際賣貨便' : '中華郵政 國際包裹';
-      const orderId = 'OD' + Date.now();
-      const when = new Date().toLocaleString('zh-TW');
-
-      // 組合購物車資料
-      const lines = state.cart.map(line => {
-        const p = CATALOG.find(x=>x.id===line.id);
-        const sub = (p?.price||0) * line.qty;
-        return { id: line.id, name: p?.name||line.id, price: p?.price||0, qty: line.qty, subtotal: sub };
-      });
-      const itemsTotal = lines.reduce((s,l)=>s+l.subtotal,0);
-
-      const itemsText = lines.map(l=>`- ${l.name} x ${l.qty} = NT$ ${l.subtotal}`).join('
-');
-      const itemsHtml = `
-        <table border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse;width:100%">
-          <thead><tr><th align="left">品名</th><th align="right">單價</th><th align="right">數量</th><th align="right">小計</th></tr></thead>
-          <tbody>
-            ${lines.map(l=>`<tr><td>${l.name}</td><td align="right">NT$ ${l.price}</td><td align="right">${l.qty}</td><td align="right">NT$ ${l.subtotal}</td></tr>`).join('')}
-          </tbody>
-          <tfoot><tr><td colspan="3" align="right"><b>商品合計（不含運費）</b></td><td align="right"><b>NT$ ${itemsTotal}</b></td></tr></tfoot>
-        </table>`;
-
-      const params = {
-        order_id: orderId,
-        site_title: '村長脫衣娃娃大禮包-官方海外商店',
-        product_list_text: itemsText,
-        product_list_html: itemsHtml,
-        items_total: `NT$ ${itemsTotal}`,
-        ship_method: method,
-        country,
-        address,
-        contact,
-        agree_contract: agree ? '同意' : '未同意',
-        created_at: when
-      };
-
-      // UI 狀態
-      btn.disabled = true;
-      status.innerHTML = '<span class="muted">⏳ 正在送出訂單…</span>';
-
-      const afterDone = (ok,msg)=>{
-        btn.disabled = false;
-        status.innerHTML = ok
-          ? `<span class="ok">✅ 訂單已送出成功（編號：${orderId}）。${msg||''}</span>`
-          : `<span class="error">❌ 寄送失敗：${msg||'未知錯誤'}</span>`;
-        if(ok){ state.cart = []; renderCart(); }
-      };
-
-      if(!emailJsConfigured()){
-        // 示範：不呼叫 EmailJS，只顯示資料
-        afterDone(true, '（示範模式：未實際寄出，請在 EmailJS 設定完成後即可生效。）');
-        return;
-      }
-
-      // 真正寄出
-      emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, params)
-        .then(()=>{ afterDone(true); })
-        .catch((e)=>{ afterDone(false, (e && (e.text||e.message)) || String(e)); });
-    }
-      if(!state.shipMethod){
-        status.innerHTML = '<span class="error">⛔ 請選擇收件方式</span>';
-        return;
-      }
-      const country = document.getElementById('country').value.trim();
-      if(!country){
-        status.innerHTML = '<span class="error">⛔ 請填寫收件國家/地區</span>';
-        return;
-      }
-      const address = document.getElementById('address').value.trim();
-      if(!address){
-        status.innerHTML = '<span class="error">⛔ 請填寫7-11國際交貨便門市資訊或收件地址</span>';
-        return;
-      }
-      const contact = document.getElementById('contact').value.trim();
-      if(!contact){
-        status.innerHTML = '<span class="error">⛔ 請填寫聯絡方式 (建議留IG帳號)</span>';
-        return;
-      }
-      const agree = document.getElementById('agreeContract').checked;
-      if(!agree){
-        status.innerHTML = '<span class="error">⛔ 請先閱讀並同意購買合約書</span>';
-        return;
-      }
-
-      const method = state.shipMethod === '711intl' ? '7-11 國際賣貨便' : '中華郵政 國際包裹';
-
-      // 使用 EmailJS 寄送訂單
-      const templateParams = {
-        product: CATALOG[0].name,
-        quantity: state.cart[0].qty,
-        shipMethod: method,
-        country: country,
-        address: address,
-        contact: contact
-      };
-
-      emailjs.send("YOUR_SERVICE_ID","YOUR_TEMPLATE_ID",templateParams)
-        .then(()=>{
-          status.innerHTML = '<span class="ok">✅ 訂單已送出，請留意信箱！</span>';
-        })
-        .catch((err)=>{
-          status.innerHTML = `<span class="error">❌ 寄送失敗：${err.text||err}</span>`;
-        });
-    }
-
-    function boot(){
-      renderCatalog();
-      renderCart();
-      const shipSel = document.getElementById('shipMethod');
-      if (shipSel) shipSel.addEventListener('change', (e)=>{ state.ship
+  </script>
+</body>
+</html>
